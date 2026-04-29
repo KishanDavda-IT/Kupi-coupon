@@ -30,6 +30,32 @@ Kupi is an open-source, real-time coupon scraping and validation engine. It auto
 4. **Open the app:**
    Navigate to [http://localhost:5000](http://localhost:5000) in your web browser.
 
+## 📱 Mobile Installation (Termux for Android)
+
+You can run the Kupi live server directly on your Android phone using Termux:
+
+1. **Install Termux** from [F-Droid](https://f-droid.org/en/packages/com.termux/). *(Note: The Google Play Store version is deprecated).*
+2. **Update packages and install dependencies:**
+   ```bash
+   pkg update && pkg upgrade -y
+   pkg install python git libxml2 libxslt -y
+   ```
+3. **Clone the repository:**
+   ```bash
+   git clone https://github.com/KishanDavda-IT/Kupi-coupon.git
+   cd Kupi-coupon
+   ```
+4. **Install Python requirements:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+5. **Start the server:**
+   ```bash
+   python kupi_server.py
+   ```
+6. **Open the app:**
+   Navigate to [http://localhost:5000](http://localhost:5000) in your mobile browser (Chrome, Brave, etc.).
+
 ## Tech Stack
 - **Backend**: Python, Flask, BeautifulSoup4, Requests (for web scraping).
 - **Frontend**: Vanilla HTML/CSS/JS with a custom-built, modern glassmorphism UI.
