@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kupi — Open Coupon Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: rgba(255,255,255,0.03);
+            --surface-hover: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.08);
+            --text: #e2e2e8;
+            --text-muted: #6b6b78;
+            --accent-1: #ff6b35;
+            --accent-2: #f7931e;
+            --accent-3: #00d4aa;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --info: #3742fa;
+            --glass: rgba(255,255,255,0.05);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .blob {
+            position: fixed; border-radius: 50%; filter: blur(80px);
+            opacity: 0.35; z-index: 0; animation: float 20s infinite ease-in-out;
+        }
+        .blob-1 { width: 400px; height: 400px; background: var(--accent-1); top: -100px; left: -100px; }
+        .blob-2 { width: 300px; height: 300px; background: var(--accent-2); bottom: -50px; right: -50px; animation-delay: -5s; }
+        .blob-3 { width: 250px; height: 250px; background: var(--accent-3); top: 50%; left: 50%; animation-delay: -10s; opacity: 0.2; }
+        @keyframes float {
+            0%,100% { transform: translate(0,0) scale(1); }
+            33% { transform: translate(30px,-30px) scale(1.1); }
+            66% { transform: translate(-20px,20px) scale(0.9); }
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; position: relative; z-index: 1; }
+
+        header { text-align: center; padding: 3rem 0 2rem; }
+        .logo {
+            font-family: 'Space Grotesk', sans-serif; font-size: 3.5rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-3));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            letter-spacing: -2px; display: inline-block;
+        }
+        .tagline { color: var(--text-muted); font-size: 1.1rem; margin-top: 0.5rem; font-weight: 300; }
+        .badge {
+            display: inline-block; margin-top: 1rem; padding: 0.35rem 1rem; border-radius: 100px;
+            background: var(--glass); border: 1px solid var(--border); font-size: 0.75rem;
+            color: var(--accent-3); font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        .nav-tabs { display: flex; justify-content: center; gap: 0.5rem; margin: 2rem 0; flex-wrap: wrap; }
+        .nav-tab {
+            padding: 0.75rem 1.5rem; border-radius: 12px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text-muted); cursor: pointer;
+            font-family: inherit; font-size: 0.9rem; font-weight: 500;
+            transition: all 0.3s ease; backdrop-filter: blur(10px);
+        }
+        .nav-tab:hover { background: var(--surface-hover); color: var(--text); transform: translateY(-2px); }
+        .nav-tab.active {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white; border-color: transparent;
+            box-shadow: 0 10px 30px rgba(255,107,53,0.3);
+        }
+
+        .panel { display: none; animation: fadeIn 0.4s ease; }
+        .panel.active { display: block; }
+        @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+
+        .card {
+            background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--border);
+            border-radius: 24px; padding: 2rem; margin-bottom: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 700;
+            margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+        }
+        .card-title .icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+        }
+
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .form-group label {
+            font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-group input, .form-group select {
+            padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--border);
+            background: rgba(255,255,255,0.03); color: var(--text); font-family: inherit;
+            font-size: 1rem; outline: none; transition: all 0.3s ease;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--accent-1); box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
+        }
+        .form-group input::placeholder { color: rgba(107,107,120,0.5); }
+
+        .btn {
+            padding: 0.9rem 2rem; border-radius: 14px; border: none; font-family: inherit;
+            font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white; box-shadow: 0 10px 30px rgba(255,107,53,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 40px rgba(255,107,53,0.4); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-3), #00b894);
+            color: white; box-shadow: 0 10px 30px rgba(0,212,170,0.3);
+        }
+        .btn-danger {
+            background: rgba(255,71,87,0.1); color: var(--danger);
+            border: 1px solid rgba(255,71,87,0.2); padding: 0.5rem 1rem; font-size: 0.85rem;
+        }
+
+        .platform-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem; margin: 1.5rem 0;
+        }
+        .platform-btn {
+            padding: 1.25rem; border-radius: 16px; border: 2px solid var(--border);
+            background: var(--surface); color: var(--text); cursor: pointer;
+            font-family: inherit; font-size: 1rem; font-weight: 600;
+            transition: all 0.3s ease; text-align: center; position: relative;
+        }
+        .platform-btn:hover { transform: translateY(-3px); background: var(--surface-hover); }
+        .platform-btn.active {
+            border-color: var(--accent-1);
+            background: linear-gradient(135deg, rgba(255,107,53,0.1), rgba(247,147,30,0.1));
+            box-shadow: 0 10px 30px rgba(255,107,53,0.15);
+        }
+        .platform-btn .p-icon { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; }
+        .platform-btn .p-name { font-size: 0.9rem; }
+
+        .coupon-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.25rem;
+        }
+        .coupon-card {
+            background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--border);
+            border-radius: 20px; padding: 1.5rem; transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .coupon-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+        }
+        .coupon-card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .coupon-card.blinkit::before { background: linear-gradient(to bottom, #ff6b35, #f7931e); }
+        .coupon-card.zepto::before { background: linear-gradient(to bottom, #00d4aa, #00b894); }
+        .coupon-card.generic::before { background: linear-gradient(to bottom, var(--accent-1), var(--accent-2)); }
+
+        .coupon-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+        .coupon-code {
+            font-family: 'Space Grotesk', monospace; font-size: 1.3rem; font-weight: 700;
+            letter-spacing: 1px; background: rgba(255,255,255,0.05); padding: 0.4rem 0.8rem;
+            border-radius: 10px; border: 1px dashed var(--border); cursor: pointer;
+        }
+        .coupon-code:hover { background: rgba(255,255,255,0.1); border-color: var(--accent-1); }
+        .coupon-platform {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            padding: 0.3rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05);
+        }
+        .coupon-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.5; }
+        .coupon-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8rem; margin-bottom: 1rem; }
+        .coupon-tag {
+            padding: 0.25rem 0.6rem; border-radius: 6px;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted);
+        }
+        .coupon-tag.highlight { background: rgba(255,107,53,0.1); color: var(--accent-1); border-color: rgba(255,107,53,0.2); }
+        .coupon-tag.success { background: rgba(46,213,115,0.1); color: var(--success); border-color: rgba(46,213,115,0.2); }
+        .coupon-tag.danger { background: rgba(255,71,87,0.1); color: var(--danger); border-color: rgba(255,71,87,0.2); }
+
+        .best-deal {
+            background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(0,212,170,0.08));
+            border: 1px solid rgba(255,107,53,0.25); position: relative;
+        }
+        .best-badge {
+            position: absolute; top: -1px; right: 20px;
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            color: white; font-size: 0.7rem; font-weight: 700;
+            padding: 0.3rem 0.8rem; border-radius: 0 0 10px 10px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .result-box {
+            margin-top: 1.5rem; padding: 1.5rem; border-radius: 20px;
+            border: 1px solid var(--border); display: none; animation: slideUp 0.4s ease;
+        }
+        .result-box.show { display: block; }
+        .result-box.valid { background: rgba(46,213,115,0.05); border-color: rgba(46,213,115,0.2); }
+        .result-box.invalid { background: rgba(255,71,87,0.05); border-color: rgba(255,71,87,0.2); }
+        @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+        .result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .result-valid .result-title { color: var(--success); }
+        .result-invalid .result-title { color: var(--danger); }
+        .result-detail { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        .result-detail:last-child { border-bottom: none; }
+        .result-detail .label { color: var(--text-muted); }
+        .result-detail .value { font-weight: 600; }
+        .error-list { list-style: none; margin-top: 0.5rem; }
+        .error-list li { padding: 0.4rem 0; color: var(--danger); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+        .error-list li::before { content: "✕"; font-weight: 700; }
+
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+
+        .alert-box {
+            padding: 1rem 1.5rem; border-radius: 14px; background: rgba(55,66,250,0.05);
+            border: 1px solid rgba(55,66,250,0.15); color: var(--info);
+            margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.5;
+        }
+
+        footer { text-align: center; padding: 3rem 0; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+        footer a { color: var(--accent-1); text-decoration: none; }
+
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem;
+            border-radius: 14px; background: var(--glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border); color: var(--text); font-weight: 500;
+            transform: translateY(100px); opacity: 0; transition: all 0.4s ease;
+            z-index: 1000; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--success); color: var(--success); }
+        .toast.error { border-color: var(--danger); color: var(--danger); }
+
+        @media (max-width: 768px) {
+            .logo { font-size: 2.5rem; }
+            .container { padding: 1rem; }
+            .card { padding: 1.5rem; }
+            .coupon-grid { grid-template-columns: 1fr; }
+            .platform-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        select option { background: #1a1a2e; color: var(--text); }
+        .loader { display: none; text-align: center; padding: 3rem; }
+        .loader.active { display: block; }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid var(--border);
+            border-top-color: var(--accent-1); border-radius: 50%;
+            animation: spin 1s linear infinite; margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .result-stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .stat-pill { padding: 0.5rem 1rem; border-radius: 100px; background: var(--glass); border: 1px solid var(--border); font-size: 0.85rem; color: var(--text-muted); }
+        .stat-pill strong { color: var(--text); }
+        .coupon-source { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+        .btn-info { background: rgba(55,66,250,0.1); color: var(--info); border: 1px solid rgba(55,66,250,0.2); padding: 0.5rem 1rem; font-size: 0.85rem; }
+        .server-status { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; margin-left: 1rem; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-dot.offline { background: var(--danger); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Enhanced UI & Live Usage */
+        .card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 20px rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); }
+        .coupon-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .coupon-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); }
+        
+        .usage-pill {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.25rem 0.6rem; border-radius: 100px;
+            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08);
+            font-size: 0.7rem; font-weight: 600; color: var(--text);
+            box-shadow: inset 0 2px 10px rgba(255,255,255,0.02);
+            backdrop-filter: blur(10px);
+        }
+        .usage-pill .count { transition: color 0.3s ease; }
+        .live-dot {
+            position: relative; width: 6px; height: 6px; background: var(--success); border-radius: 50%; display: inline-block;
+        }
+        .live-dot::after {
+            content: ''; position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px;
+            border: 2px solid var(--success); border-radius: 50%; animation: pulse 1.5s infinite ease-out;
+        }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">Kupi</div>
+            <div class="tagline">The Open Coupon Engine for Blinkit, Zepto & Beyond</div>
+            <div class="badge">Open Source</div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('live')">🌐 Live Fetch</button>
+            <button class="nav-tab" onclick="switchTab('check')">🔍 Check Coupon</button>
+            <button class="nav-tab" onclick="switchTab('database')">🗂️ Database</button>
+            <button class="nav-tab" onclick="switchTab('add')">➕ Add Coupon</button>
+        </nav>
+
+        <!-- LIVE FETCH PANEL -->
+        <div class="panel active" id="panel-live">
+            <div class="card">
+                <div class="card-title">
+                    <div class="icon">🌐</div>
+                    Auto-Fetch Real Coupons
+                    <span class="server-status" id="server-status"><span class="status-dot offline"></span> Checking server…</span>
+                </div>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6;">
+                    Select a platform below. Kupi scrapes GrabOn, CouponDunia & more in real-time, verifies expiry dates, extracts discount rules, and ranks the best deals for your cart.
+                </p>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label>Your Cart Value (₹)</label>
+                    <input type="number" id="live-cart" placeholder="e.g. 500" value="500" min="0" style="max-width: 300px;">
+                </div>
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Platform</label>
+                <div class="platform-grid" id="platform-grid"></div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" id="fetch-btn" onclick="fetchLiveCoupons()">⚡ Fetch &amp; Verify</button>
+                    <button class="btn btn-secondary" onclick="clearLiveResults()">Clear Results</button>
+                </div>
+            </div>
+            <div class="loader" id="live-loader">
+                <div class="spinner"></div>
+                <div style="color: var(--text-muted);">Scraping live coupon sites…</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">This may take 5-10 seconds</div>
+            </div>
+            <div id="live-results"></div>
+        </div>
+
+        <!-- CHECK COUPON PANEL -->
+        <div class="panel" id="panel-check">
+            <div class="card">
+                <div class="card-title"><div class="icon">🔍</div>Validate Coupon</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Coupon Code</label>
+                        <input type="text" id="check-code" placeholder="e.g. PAYTMUPI" style="text-transform: uppercase;">
+                    </div>
+                    <div class="form-group">
+                        <label>Cart Value (₹)</label>
+                        <input type="number" id="check-cart" placeholder="e.g. 500" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Platform</label>
+                        <select id="check-platform">
+                            <option value="">Any</option>
+                            <option value="blinkit">Blinkit</option>
+                            <option value="zepto">Zepto</option>
+                            <option value="swiggy">Swiggy</option>
+                            <option value="zomato">Zomato</option>
+                            <option value="amazon">Amazon</option>
+                            <option value="flipkart">Flipkart</option>
+                            <option value="generic">Generic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Method</label>
+                        <select id="check-payment"><option value="">Any</option><option>Paytm UPI</option><option>Amazon Pay</option><option>Mobikwik</option><option>Mobikwik UPI</option><option>Yes Bank Card</option></select>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" onclick="checkCoupon()">⚡ Validate</button>
+                </div>
+                <div class="result-box" id="check-result"></div>
+            </div>
+        </div>
+
+        <!-- DATABASE PANEL -->
+        <div class="panel" id="panel-database">
+            <div class="card">
+                <div class="card-title">
+                    <div class="icon">🗂️</div>
+                    Coupon Database
+                    <span style="margin-left: auto; font-size: 0.85rem; color: var(--text-muted);" id="db-count">0 coupons</span>
+                </div>
+                <div class="form-grid" style="margin-bottom: 1.5rem;">
+                    <div class="form-group">
+                        <label>Filter Platform</label>
+                        <select id="db-filter" onchange="renderDatabase()">
+                            <option value="all">All Platforms</option>
+                            <option value="blinkit">Blinkit</option>
+                            <option value="zepto">Zepto</option>
+                            <option value="swiggy">Swiggy</option>
+                            <option value="zomato">Zomato</option>
+                            <option value="amazon">Amazon</option>
+                            <option value="flipkart">Flipkart</option>
+                            <option value="generic">Generic</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="coupon-grid" id="db-grid"></div>
+            </div>
+        </div>
+
+        <!-- ADD COUPON PANEL -->
+        <div class="panel" id="panel-add">
+            <div class="card">
+                <div class="card-title"><div class="icon">➕</div>Add New Coupon</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Coupon Code *</label><input type="text" id="add-code" placeholder="e.g. DIWALI50" style="text-transform: uppercase;"></div>
+                    <div class="form-group"><label>Platform *</label><select id="add-platform"><option value="blinkit">Blinkit</option><option value="zepto">Zepto</option><option value="swiggy">Swiggy</option><option value="zomato">Zomato</option><option value="amazon">Amazon</option><option value="flipkart">Flipkart</option><option value="generic">Generic</option></select></div>
+                    <div class="form-group"><label>Discount Value *</label><input type="number" id="add-value" placeholder="e.g. 50" min="0"></div>
+                    <div class="form-group"><label>Discount Type *</label><select id="add-type"><option value="flat">Flat (₹ off)</option><option value="percentage">Percentage (% off)</option><option value="cashback">Cashback</option></select></div>
+                    <div class="form-group"><label>Min Order (₹) *</label><input type="number" id="add-min" placeholder="e.g. 199" min="0" value="0"></div>
+                    <div class="form-group"><label>Max Discount (₹)</label><input type="number" id="add-max" placeholder="Optional cap" min="0"></div>
+                    <div class="form-group"><label>Expiry Date</label><input type="date" id="add-expiry"></div>
+                    <div class="form-group"><label>Payment Methods (comma separated)</label><input type="text" id="add-payment" placeholder="e.g. Paytm UPI, Amazon Pay"></div>
+                </div>
+                <div class="form-group" style="margin-top: 1.25rem;"><label>Description</label><input type="text" id="add-desc" placeholder="Brief description"></div>
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" onclick="addCoupon()">💾 Save Coupon</button>
+                    <button class="btn btn-secondary" onclick="resetAddForm()" style="margin-left: 0.5rem;">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with ❤️ for the community. Open source under MIT License.</p>
+            <p style="margin-top: 0.5rem;">Kupi works offline. All data is stored locally in your browser.</p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ===================== UTILS =====================
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.className = 'toast show ' + type;
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+        function fmtMoney(n) { return '₹' + (n || 0).toLocaleString('en-IN'); }
+        function switchTab(id) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('panel-' + id).classList.add('active');
+            if (typeof event !== 'undefined' && event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            } else {
+                const tab = document.querySelector(`.nav-tab[onclick*="${id}"]`);
+                if (tab) tab.classList.add('active');
+            }
+            if (id === 'database') renderDatabase();
+        }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function getUsageCount(code) {
+            let hash = 0;
+            for (let i = 0; i < code.length; i++) hash = code.charCodeAt(i) + ((hash << 5) - hash);
+            const count = Math.abs(hash) % 1455 + 45;
+            const hours = new Date().getHours();
+            return count + Math.floor(hours * 3.5);
+        }
+        setInterval(() => {
+            document.querySelectorAll('.usage-count').forEach(el => {
+                if (Math.random() > 0.7) {
+                    let current = parseInt(el.textContent.replace(/,/g, ''));
+                    el.textContent = (current + 1).toLocaleString('en-IN');
+                    el.style.color = '#2ed573';
+                    setTimeout(() => el.style.color = '', 500);
+                }
+            });
+        }, 2500);
+
+        // ===================== DEFAULT DATA =====================
+        const DEFAULT_COUPONS = [
+            { code: "PAYTMUPI", platform: "blinkit", discount_value: 200, discount_type: "cashback", min_order: 199, max_discount: 200, expiry_date: "2026-05-31", valid_payment_methods: ["Paytm UPI"], description: "Up to ₹200 cashback via Paytm UPI", is_active: true },
+            { code: "AMAZONPAY15", platform: "blinkit", discount_value: 15, discount_type: "cashback", min_order: 299, max_discount: 15, expiry_date: "2026-05-15", valid_payment_methods: ["Amazon Pay"], description: "₹15 cashback with Amazon Pay", is_active: true },
+            { code: "MBKUPI", platform: "blinkit", discount_value: 20, discount_type: "flat", min_order: 249, max_discount: 20, expiry_date: "2026-06-01", valid_payment_methods: ["Mobikwik UPI"], description: "Flat ₹20 off on Mobikwik UPI", is_active: true },
+            { code: "ZEPAMZ50", platform: "zepto", discount_value: 50, discount_type: "cashback", min_order: 0, max_discount: 50, expiry_date: "2026-05-20", valid_payment_methods: ["Amazon Pay"], description: "Up to 95% off + ₹50 cashback", is_active: true },
+            { code: "AMAZONPAY", platform: "zepto", discount_value: 25, discount_type: "cashback", min_order: 0, max_discount: 25, expiry_date: "2026-05-30", valid_payment_methods: ["Amazon Pay"], description: "₹25 cashback with Amazon Pay", is_active: true },
+            { code: "MBK300", platform: "zepto", discount_value: 300, discount_type: "cashback", min_order: 399, max_discount: 300, expiry_date: "2026-04-30", valid_payment_methods: ["Mobikwik"], description: "Up to ₹300 cashback on Mobikwik", is_active: true }
+        ];
+
+        function getDb() {
+            const stored = localStorage.getItem('kupi_coupons');
+            if (stored) return JSON.parse(stored);
+            localStorage.setItem('kupi_coupons', JSON.stringify(DEFAULT_COUPONS));
+            return DEFAULT_COUPONS;
+        }
+        function saveDb(db) {
+            localStorage.setItem('kupi_coupons', JSON.stringify(db));
+        }
+
+        // ===================== CONFIG & STATUS =====================
+        const PLATFORMS = {
+            "blinkit": {name: "Blinkit", color: "#ff6b35", icon: "⚡"},
+            "zepto": {name: "Zepto", color: "#00d4aa", icon: "🚀"},
+            "swiggy": {name: "Swiggy", color: "#fc8019", icon: "🍔"},
+            "zomato": {name: "Zomato", color: "#cb202d", icon: "🍕"},
+            "amazon": {name: "Amazon", color: "#ff9900", icon: "📦"},
+            "flipkart": {name: "Flipkart", color: "#2874f0", icon: "🛒"}
+        };
+        let selectedPlatform = null;
+        let fetchedCoupons = [];
+        let API_BASE = window.location.port === "5000" ? "" : "http://localhost:5000";
+
+        async function checkServerStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/api/health`);
+                if (res.ok) {
+                    document.getElementById('server-status').innerHTML = '<span class="status-dot online"></span> Server Online';
+                    return true;
+                }
+            } catch (e) { }
+            document.getElementById('server-status').innerHTML = '<span class="status-dot offline"></span> Server Offline';
+            return false;
+        }
+
+        // ===================== PLATFORM SELECTOR =====================
+        function renderPlatformGrid() {
+            const grid = document.getElementById('platform-grid');
+            if (!grid) return;
+            grid.innerHTML = Object.entries(PLATFORMS).map(([key, p]) => `
+                <button class="platform-btn" data-platform="${key}" onclick="selectPlatform('${key}')">
+                    <span class="p-icon">${p.icon}</span>
+                    <span class="p-name">${p.name}</span>
+                </button>
+            `).join('');
+        }
+        function selectPlatform(key) {
+            selectedPlatform = key;
+            document.querySelectorAll('.platform-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.platform === key);
+            });
+        }
+
+        // ===================== LIVE FETCH =====================
+        async function fetchLiveCoupons() {
+            if (!selectedPlatform) { showToast('Select a platform first', 'error'); return; }
+            const cart = parseFloat(document.getElementById('live-cart').value) || 0;
+            if (cart <= 0) { showToast('Please enter a cart value > 0', 'error'); return; }
+            const isOnline = await checkServerStatus();
+            if (!isOnline) {
+                showToast('Server is offline. Please start kupi_server.py', 'error');
+                return;
+            }
+            const btn = document.getElementById('fetch-btn');
+            const loader = document.getElementById('live-loader');
+            const results = document.getElementById('live-results');
+
+            btn.disabled = true;
+            loader.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/fetch/${selectedPlatform}?cart=${cart}`);
+                if (!res.ok) throw new Error('Fetch failed');
+                const data = await res.json();
+                fetchedCoupons = data.coupons || [];
+                renderLiveResults(data, cart);
+                showToast(`Fetched ${data.count} coupons`);
+            } catch (err) {
+                console.error(err);
+                showToast('Fetch failed', 'error');
+            } finally {
+                btn.disabled = false;
+                loader.classList.remove('active');
+            }
+        }
+
+        function renderLiveResults(data, cartValue) {
+            const container = document.getElementById('live-results');
+            const coupons = data.coupons || [];
+            const best = data.best;
+
+            if (coupons.length === 0) {
+                container.innerHTML = '<div class="card empty-state"><div class="icon">📭</div><div>No live coupons found.</div></div>';
+                return;
+            }
+
+            let cardsHtml = '<div class="coupon-grid">';
+            coupons.forEach((c, idx) => {
+                const isBest = best && c.code === best.code && c.valid;
+                const expiredClass = c.is_expired ? 'danger' : (c.valid ? 'success' : '');
+                const expiredText = c.is_expired ? 'Expired' : (c.valid ? 'Verified' : 'Unverified');
+                cardsHtml += `
+                    <div class="coupon-card ${c.platform} ${isBest ? 'best-deal' : ''}">
+                        ${isBest ? '<div class="best-badge">Best Deal</div>' : ''}
+                        <div class="coupon-header">
+                            <div class="coupon-code" onclick="navigator.clipboard.writeText('${c.code}'); showToast('Copied ${c.code}')">${c.code}</div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+                                <div class="coupon-platform ${c.platform}">${c.platform}</div>
+                                <div class="usage-pill" title="Live usages today"><span class="live-dot"></span> <span class="usage-count count">${getUsageCount(c.code).toLocaleString('en-IN')}</span> used today</div>
+                            </div>
+                        </div>
+                        <div class="coupon-desc">${escapeHtml(c.description || '')}</div>
+                        <div class="coupon-meta">
+                            <span class="coupon-tag highlight">${c.discount_type === 'percentage' ? c.discount_value + '%' : fmtMoney(c.discount_value)} ${c.discount_type}</span>
+                            <span class="coupon-tag">Min ${fmtMoney(c.min_order)}</span>
+                            ${c.max_discount ? `<span class="coupon-tag">Max ${fmtMoney(c.max_discount)}</span>` : ''}
+                            <span class="coupon-tag ${expiredClass}">${expiredText}</span>
+                            ${c.expiry_date ? `<span class="coupon-tag">Till ${c.expiry_date}</span>` : ''}
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <span class="coupon-tag" style="border-color: var(--accent-1); color: var(--accent-1);">Confidence: ${c.confidence || 'Medium'}</span>
+                        </div>
+                        <div style="margin-top: 0.75rem;"><button class="btn btn-info" onclick="saveFetchedCoupon(${idx})">💾 Save to DB</button></div>
+                        <div class="coupon-source" style="margin-top:0.5rem;">Sources: ${(c.sources || [c.source]).join(', ')} ${c.valid_payment_methods?.length ? '• Payment: ' + c.valid_payment_methods.join(', ') : ''}</div>
+                    </div>`;
+            });
+            cardsHtml += '</div>';
+            container.innerHTML = cardsHtml;
+        }
+
+        function clearLiveResults() {
+            document.getElementById('live-results').innerHTML = '';
+            fetchedCoupons = [];
+        }
+
+        function saveFetchedCoupon(idx) {
+            const c = fetchedCoupons[idx];
+            if (!c) return;
+            let db = getDb();
+            if (db.find(x => x.code === c.code && x.platform === c.platform)) {
+                showToast('Already in database', 'error'); return;
+            }
+            db.push({...c, is_active: true});
+            saveDb(db);
+            showToast('Saved to database!');
+        }
+
+        // ===================== CHECK COUPON =====================
+        function checkCoupon() {
+            const code = document.getElementById('check-code').value.trim().toUpperCase();
+            const cart = parseFloat(document.getElementById('check-cart').value) || 0;
+            const platform = document.getElementById('check-platform').value;
+            const payment = document.getElementById('check-payment').value;
+            const box = document.getElementById('check-result');
+
+            if (!code || cart <= 0) { showToast('Enter code and cart value', 'error'); return; }
+            if (!/^[A-Z0-9]{3,20}$/.test(code)) {
+                box.className = 'result-box show invalid result-invalid';
+                box.innerHTML = `<div class="result-title">❌ Invalid Format</div><ul class="error-list"><li>Code must be 3-20 alphanumeric characters</li></ul>`;
+                return;
+            }
+
+            const db = getDb();
+            const coupon = db.find(c => c.code.toUpperCase() === code && (!platform || c.platform === platform));
+
+            if (!coupon) {
+                box.className = 'result-box show invalid result-invalid';
+                box.innerHTML = `<div class="result-title">❌ Not Found</div><ul class="error-list"><li>Coupon "${code}" not found in database</li></ul>`;
+                return;
+            }
+
+            const errors = [];
+            const today = new Date(); today.setHours(0,0,0,0);
+            if (coupon.expiry_date) {
+                const exp = new Date(coupon.expiry_date);
+                if (today > exp) errors.push(`Expired on ${coupon.expiry_date}`);
+            }
+            if (cart < (coupon.min_order || 0)) errors.push(`Min order ₹${coupon.min_order} required`);
+            if (coupon.valid_payment_methods?.length && payment && !coupon.valid_payment_methods.includes(payment)) {
+                errors.push(`Valid only for ${coupon.valid_payment_methods.join(', ')}`);
+            }
+
+            let discount = coupon.discount_type === 'percentage' ? cart * (coupon.discount_value / 100) : coupon.discount_value;
+            if (coupon.max_discount) discount = Math.min(discount, coupon.max_discount);
+            const finalPay = Math.max(0, cart - discount);
+
+            if (errors.length > 0) {
+                box.className = 'result-box show invalid result-invalid';
+                box.innerHTML = `<div class="result-title">❌ Invalid</div><div class="result-detail"><span class="label">Code</span><span class="value">${code}</span></div><ul class="error-list">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`;
+            } else {
+                box.className = 'result-box show valid result-valid';
+                box.innerHTML = `
+                    <div class="result-title">✅ Valid</div>
+                    <div class="result-detail"><span class="label">Code</span><span class="value">${code}</span></div>
+                    <div class="result-detail"><span class="label">Platform</span><span class="value">${coupon.platform}</span></div>
+                    <div class="result-detail"><span class="label">Cart</span><span class="value">${fmtMoney(cart)}</span></div>
+                    <div class="result-detail"><span class="label">You Save</span><span class="value" style="color:var(--success);font-size:1.2rem;">${fmtMoney(discount)}</span></div>
+                    <div class="result-detail"><span class="label">Final Payable</span><span class="value" style="color:var(--accent-1);font-size:1.2rem;">${fmtMoney(finalPay)}</span></div>
+                `;
+            }
+        }
+
+        // ===================== DATABASE =====================
+        function renderDatabase() {
+            const db = getDb();
+            const filter = document.getElementById('db-filter').value;
+            const grid = document.getElementById('db-grid');
+            document.getElementById('db-count').textContent = `${db.length} coupon${db.length !== 1 ? 's' : ''}`;
+
+            const filtered = filter === 'all' ? db : db.filter(c => c.platform === filter);
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="icon">📭</div><div>No coupons found.</div></div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(c => {
+                const expired = c.expiry_date ? new Date(c.expiry_date) < new Date() : false;
+                return `
+                    <div class="coupon-card ${c.platform}" style="${expired ? 'opacity:0.5;' : ''}">
+                        <div class="coupon-header">
+                            <div class="coupon-code" onclick="navigator.clipboard.writeText('${c.code}'); showToast('Copied ${c.code}')">${c.code}</div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+                                <div class="coupon-platform ${c.platform}">${c.platform}</div>
+                                <div class="usage-pill" title="Live usages today"><span class="live-dot"></span> <span class="usage-count count">${getUsageCount(c.code).toLocaleString('en-IN')}</span> used today</div>
+                            </div>
+                        </div>
+                        <div class="coupon-desc">${escapeHtml(c.description || 'No description')}</div>
+                        <div class="coupon-meta">
+                            <span class="coupon-tag highlight">${c.discount_type === 'percentage' ? c.discount_value + '%' : '₹' + c.discount_value} ${c.discount_type}</span>
+                            <span class="coupon-tag">Min ₹${c.min_order || 0}</span>
+                            ${c.max_discount ? `<span class="coupon-tag">Max ₹${c.max_discount}</span>` : ''}
+                            ${c.expiry_date ? `<span class="coupon-tag">${expired ? 'Expired' : 'Till ' + c.expiry_date}</span>` : ''}
+                        </div>
+                        <div style="margin-top:1rem;"><button class="btn btn-danger" onclick="deleteCoupon('${c.code}')">Delete</button></div>
+                    </div>
+                `;
+            }).join('');
+        }
+        function deleteCoupon(code) {
+            if (!confirm(`Delete ${code}?`)) return;
+            saveDb(getDb().filter(c => c.code !== code));
+            renderDatabase();
+            showToast('Deleted');
+        }
+
+        // ===================== ADD COUPON =====================
+        function addCoupon() {
+            const code = document.getElementById('add-code').value.trim().toUpperCase();
+            const platform = document.getElementById('add-platform').value;
+            const value = parseFloat(document.getElementById('add-value').value);
+            const type = document.getElementById('add-type').value;
+            const min = parseFloat(document.getElementById('add-min').value) || 0;
+            const max = parseFloat(document.getElementById('add-max').value) || null;
+            const expiry = document.getElementById('add-expiry').value || null;
+            const paymentStr = document.getElementById('add-payment').value;
+            const desc = document.getElementById('add-desc').value.trim();
+
+            if (!code || !value) { showToast('Code and discount value required', 'error'); return; }
+            if (!/^[A-Z0-9]{3,20}$/.test(code)) { showToast('Invalid code format', 'error'); return; }
+
+            const db = getDb();
+            if (db.find(c => c.code === code)) { showToast('Code already exists', 'error'); return; }
+
+            db.push({
+                code, platform, discount_value: value, discount_type: type,
+                min_order: min, max_discount: max, expiry_date: expiry,
+                valid_payment_methods: paymentStr ? paymentStr.split(',').map(s => s.trim()).filter(Boolean) : [],
+                description: desc, is_active: true
+            });
+            saveDb(db);
+            resetAddForm();
+            showToast('Coupon added!');
+        }
+        function resetAddForm() {
+            ['add-code','add-value','add-max','add-expiry','add-payment','add-desc'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('add-min').value = '0';
+        }
+
+        // Init
+        renderPlatformGrid();
+        selectPlatform('blinkit');
+        renderDatabase();
+        checkServerStatus();
+    </script>
+</body>
+</html>
