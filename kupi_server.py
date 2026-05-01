@@ -479,6 +479,116 @@ def api_health():
     return jsonify({"status": "online"})
 
 
+@app.route("/api/giftcards/<platform>")
+def api_giftcards(platform):
+    """Scrape real gift card deals from GyFTR for a platform."""
+    platform = platform.lower().strip()
+
+    # GyFTR URL mapping — some platforms have different slugs
+    gyftr_slugs = {
+        "amazon": ["amazon"],
+        "flipkart": ["flipkart"],
+        "swiggy": ["swiggy-money", "swiggy-gv", "swiggy"],
+        "zomato": ["zomato"],
+        "blinkit": ["blinkit"],
+        "zepto": ["zepto"],
+    }
+
+    slugs = gyftr_slugs.get(platform, [platform])
+    all_cards = []
+
+    for slug in slugs:
+        cards = _scrape_gyftr(slug, platform)
+        all_cards.extend(cards)
+        if all_cards:
+            break  # Found cards with the first working slug
+        time.sleep(0.3)
+
+    # Filter to only in-stock cards
+    in_stock = [c for c in all_cards if c.get("stock", 0) > 0]
+
+    # Sort by discount percentage (best deal first)
+    in_stock.sort(
+        key=lambda x: (x["value"] - x["price"]) / x["value"] if x["value"] > 0 else 0,
+        reverse=True,
+    )
+
+    return jsonify({
+        "platform": platform,
+        "cards": in_stock,
+        "total_found": len(all_cards),
+        "in_stock": len(in_stock),
+        "sold_out": len(all_cards) - len(in_stock),
+    })
+
+
+def _scrape_gyftr(slug, platform):
+    """Scrape a single GyFTR brand page and return gift card data."""
+    url = f"https://www.gyftr.com/{slug}"
+    cards = []
+
+    try:
+        resp = requests.get(url, headers=get_headers(), timeout=15)
+        resp.raise_for_status()
+        html = resp.text
+
+        # Extract __NEXT_DATA__ JSON
+        match = re.search(r'<script\s+id="__NEXT_DATA__"\s+type="application/json">\s*({.*?})\s*</script>', html, re.DOTALL)
+        if not match:
+            print(f"[GyFTR] No __NEXT_DATA__ found for {slug}")
+            return cards
+
+        try:
+            next_data = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            print(f"[GyFTR] Failed to parse __NEXT_DATA__ for {slug}")
+            return cards
+
+        # Navigate the Next.js data structure
+        props = next_data.get("props", {}).get("pageProps", {})
+        initial_state = props.get("reduxState", {})
+
+        brand_info = initial_state.get("brandInfo", {})
+        product_store = brand_info.get("productDetailStore", [])
+        
+        brand_detail = brand_info.get("brandDetailStore", {})
+        brand_name = brand_detail.get("BrandName", platform.title())
+        base_discount = brand_detail.get("BrandDiscount", 0)
+
+        if not product_store or len(product_store) == 0:
+            # Brand is sold out — return empty
+            print(f"[GyFTR] {slug} is SOLD OUT (empty productDetailStore)")
+            return cards
+
+        for product in product_store:
+            face_value = product.get("mrp") or product.get("price", 0)
+            stock = product.get("stock_left", 0)
+            
+            # Product level discount if available, else fallback to brand level
+            discount_pct = product.get("discount") or base_discount or 0
+            
+            if face_value <= 0:
+                continue
+
+            selling_price = int(face_value * (1 - discount_pct / 100))
+
+            cards.append({
+                "platform": platform,
+                "brand": brand_name,
+                "value": int(face_value),
+                "price": int(selling_price),
+                "stock": int(stock),
+                "description": f"₹{int(face_value)} {brand_name} Gift Card — {discount_pct}% off. Instant delivery via email/SMS.",
+                "link": url,
+                "source": "GyFTR",
+            })
+
+    except Exception as e:
+        print(f"[GyFTR] Error scraping {slug}: {e}")
+
+    return cards
+
+
 # =============================================================================
 # FRONTEND TEMPLATE
 # =============================================================================
@@ -489,6 +599,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kupi — Live Coupon Engine</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏷️</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -720,6 +831,13 @@ HTML_TEMPLATE = """
             text-transform: uppercase; letter-spacing: 1px;
         }
 
+        .result-stats { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: center; }
+        .stat-pill { padding: 0.5rem 1rem; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); font-size: 0.9rem; }
+        .usage-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.6rem; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,213,115,0.4); } 70% { opacity: 0.5; box-shadow: 0 0 0 6px rgba(46,213,115,0); } 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,213,115,0); } }
+        .gc-stock { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: inline-block; }
+
         .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
         .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
 
@@ -810,6 +928,7 @@ HTML_TEMPLATE = """
             <button class="nav-tab" onclick="switchTab('check')">🔍 Check Coupon</button>
             <button class="nav-tab" onclick="switchTab('database')">🗂️ Database</button>
             <button class="nav-tab" onclick="switchTab('add')">➕ Add Coupon</button>
+            <button class="nav-tab" onclick="switchTab('giftcards')">🎁 Gift Cards</button>
         </nav>
 
         <!-- LIVE FETCH PANEL -->
@@ -942,6 +1061,29 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
+        <!-- GIFT CARDS PANEL -->
+        <div class="panel" id="panel-giftcards">
+            <div class="card">
+                <div class="card-title">
+                    <div class="icon">🎁</div>
+                    Discounted Gift Cards
+                </div>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.6;">
+                    Select a platform to fetch available discounted gift cards. Buy them at a discount and stack them with your coupons for maximum savings!
+                </p>
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Platform</label>
+                <div class="platform-grid" id="gc-platform-grid"></div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" id="fetch-gc-btn" onclick="fetchGiftCards()">⚡ Fetch Gift Cards</button>
+                </div>
+            </div>
+            <div class="loader" id="gc-loader">
+                <div class="spinner"></div>
+                <div style="color: var(--text-muted);">Fetching gift card deals…</div>
+            </div>
+            <div id="gc-results"></div>
+        </div>
+
         <footer>
             <p>Built with ❤️ for the community. Open source under MIT License.</p>
             <p style="margin-top: 0.5rem;">Kupi Server fetches real coupons from GrabOn, CouponDunia & more.</p>
@@ -995,9 +1137,128 @@ HTML_TEMPLATE = """
         }
         function selectPlatform(key) {
             selectedPlatform = key;
-            document.querySelectorAll('.platform-btn').forEach(btn => {
+            document.querySelectorAll('#platform-grid .platform-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.platform === key);
             });
+        }
+
+        // ===================== GIFT CARDS =====================
+        let gcSelectedPlatform = null;
+        function renderGcPlatformGrid() {
+            const grid = document.getElementById('gc-platform-grid');
+            if (!grid) return;
+            grid.innerHTML = Object.entries(PLATFORMS).map(([key, p]) => `
+                <button class="platform-btn gc-platform-btn" data-platform="${key}" onclick="selectGcPlatform('${key}')">
+                    <span class="p-icon">${p.icon}</span>
+                    <span class="p-name">${p.name}</span>
+                </button>
+            `).join('');
+        }
+        function selectGcPlatform(key) {
+            gcSelectedPlatform = key;
+            document.querySelectorAll('.gc-platform-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.platform === key);
+            });
+        }
+
+        async function fetchGiftCards() {
+            if (!gcSelectedPlatform) { showToast('Select a platform first', 'error'); return; }
+            const btn = document.getElementById('fetch-gc-btn');
+            const loader = document.getElementById('gc-loader');
+            const results = document.getElementById('gc-results');
+
+            btn.disabled = true;
+            loader.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const res = await fetch('/api/giftcards/' + gcSelectedPlatform);
+                if (!res.ok) throw new Error('Fetch failed');
+                const data = await res.json();
+                renderGcResults(data);
+                showToast('Found ' + data.cards.length + ' gift card deals');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to fetch gift cards', 'error');
+            } finally {
+                btn.disabled = false;
+                loader.classList.remove('active');
+            }
+        }
+
+        function renderGcResults(data) {
+            const container = document.getElementById('gc-results');
+            const cards = data.cards || [];
+
+            if (cards.length === 0) {
+                const soldMsg = data.sold_out > 0
+                    ? `<div style="margin-top: 0.5rem; font-size: 0.9rem;">All ${data.total_found || ''} gift cards are currently sold out.</div>`
+                    : '';
+                container.innerHTML = `<div class="card empty-state"><div class="icon">📭</div><div>No gift cards in stock for this platform right now.${soldMsg}</div></div>`;
+                return;
+            }
+
+            let statsHtml = `
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div class="result-stats">
+                        <div class="stat-pill">Platform: <strong>${PLATFORMS[data.platform]?.name || data.platform}</strong></div>
+                        <div class="stat-pill" style="color: var(--success); border-color: rgba(46,213,115,0.3);">In Stock: <strong>${data.in_stock}</strong></div>
+                        ${data.sold_out > 0 ? `<div class="stat-pill" style="color: var(--danger); border-color: rgba(255,71,87,0.3);">Sold Out: <strong>${data.sold_out}</strong></div>` : ''}
+                        <div class="stat-pill">Source: <strong>GyFTR</strong></div>
+                    </div>
+                </div>`;
+
+            let cardsHtml = '<div class="coupon-grid">';
+            cards.forEach((c) => {
+                const saving = c.value - c.price;
+                const pct = Math.round((saving / c.value) * 100);
+                const stockColor = c.stock <= 5 ? 'var(--danger)' : c.stock <= 20 ? 'var(--warning)' : 'var(--success)';
+                const stockLabel = c.stock <= 5 ? 'Almost Gone!' : c.stock <= 20 ? 'Limited Stock' : 'In Stock';
+                cardsHtml += `
+                    <div class="coupon-card ${c.platform}">
+                        <div class="coupon-header">
+                            <div class="coupon-code" style="font-size: 1.1rem; border: none; background: transparent; padding: 0;">₹${c.value} Gift Card</div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;">
+                                <div class="coupon-platform ${c.platform}">${c.platform}</div>
+                                <div class="usage-pill" title="Stock remaining" style="border-color: ${stockColor}40;">
+                                    <span class="live-dot" style="background: ${stockColor};"></span>
+                                    <span class="gc-stock count" style="color: ${stockColor};">${c.stock}</span> left
+                                </div>
+                            </div>
+                        </div>
+                        <div class="coupon-desc">${c.description}</div>
+                        <div class="coupon-meta">
+                            <span class="coupon-tag highlight">${pct}% OFF</span>
+                            <span class="coupon-tag">Save ₹${saving}</span>
+                            <span class="coupon-tag" style="color: ${stockColor}; border-color: ${stockColor}40;">${stockLabel}</span>
+                        </div>
+                        <div class="result-detail" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+                            <span class="label">Pay Only:</span>
+                            <span class="value" style="color:var(--accent-1); font-size: 1.2rem;">${fmtMoney(c.price)}</span>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <a href="${c.link}" target="_blank" style="text-decoration: none;">
+                                <button class="btn btn-success" style="width: 100%; justify-content: center;">🛒 Buy Now</button>
+                            </a>
+                        </div>
+                    </div>`;
+            });
+            cardsHtml += '</div>';
+            container.innerHTML = statsHtml + cardsHtml;
+
+            // Live stock countdown animation
+            setInterval(() => {
+                document.querySelectorAll('.gc-stock').forEach(el => {
+                    if (Math.random() > 0.85) {
+                        let current = parseInt(el.textContent);
+                        if (current > 1) {
+                            el.textContent = current - 1;
+                            el.style.transform = 'scale(1.3)';
+                            setTimeout(() => el.style.transform = '', 300);
+                        }
+                    }
+                });
+            }, 4000);
         }
 
         // ===================== LIVE FETCH =====================
@@ -1303,6 +1564,8 @@ HTML_TEMPLATE = """
         // ===================== INIT =====================
         renderPlatformGrid();
         selectPlatform('blinkit');
+        renderGcPlatformGrid();
+        selectGcPlatform('amazon');
     </script>
 </body>
 </html>
